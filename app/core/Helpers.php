@@ -23,7 +23,7 @@ function periodPath($path)
 
 function redirect($path)
 {
-    header("location:" . \Config::URLROOT . $path);
+    header("location:" . \Config::URLROOT() . $path);
 }
 
 function dd($content)
@@ -75,7 +75,7 @@ function safeEcho($value)
 
 function urlPath($path)
 {
-    safeEcho(\Config::URLROOT . $path);
+    safeEcho(\Config::URLROOT() . $path);
 }
 
 function publicPath($path)

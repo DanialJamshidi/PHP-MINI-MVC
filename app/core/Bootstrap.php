@@ -1,12 +1,25 @@
 <?php
+
 declare(strict_types=1);
 
-$WEB = "off";
+function WEB()
+{
+    $host = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? '';
+    $devDomains = ['localhost', '127.0.0.1', 'dev.', 'test.', 'staging.'];
 
-if ($WEB === "off") {
-        ini_set('display_errors', '1');
-        ini_set('display_startup_errors', '1');
-        error_reporting(E_ALL);
+    foreach ($devDomains as $devDomain) {
+        if (strpos($host, $devDomain) !== false) {
+            return 'off';
+        }
+    }
+
+    return 'on';
+}
+
+if (WEB() === "off") {
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+    error_reporting(E_ALL);
 } else {
     ini_set('display_errors', 0);
     ini_set('log_errors', 0);
@@ -26,14 +39,15 @@ function auto_loader($classes)
 {
 
     $app = "../app/";
-    $file = $app . "libs/" . $classes . ".php";
+    $file = $app . "core/" . $classes . ".php";
     if (file_exists($file)) {
         require_once $file;
     }
 
     $routes = [
-        $app . "libs/Helpers.php"
+        $app . "core/Helpers.php"
     ];
+
     foreach ($routes as $path) {
         if (file_exists($path)) {
             require_once $path;
