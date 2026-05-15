@@ -23,7 +23,7 @@ function periodPath($path)
 
 function redirect($path)
 {
-    header("location:" . \Config::URLROOT . $path);
+    header("location:" . \Config::URLROOT() . $path);
 }
 
 function dd($content)
@@ -70,17 +70,17 @@ function require_view($path)
 
 function safeEcho($value)
 {
-    echo htmlspecialchars($value);
+    return htmlspecialchars($value);
 }
 
 function urlPath($path)
 {
-    safeEcho(\Config::URLROOT . $path);
+    return safeEcho(\Config::URLROOT() . $path);
 }
 
 function publicPath($path)
 {
-    safeEcho("./" . $path);
+    return safeEcho(\Config::URLROOT() . $path);
 }
 
 function getDbConnection(): PDO
@@ -301,4 +301,191 @@ function validateToken(): void
     if (isset($_SESSION["csrf_token"])) {
         unset($_SESSION["csrf_token"]);
     }
+}
+
+function device($ua)
+{
+    if (preg_match('/Android/i', $ua)) {
+        return 'Android (Mobile/Tablet)';
+    } elseif (preg_match('/iPhone|iPad|iPod/i', $ua)) {
+        return 'Apple iOS Device';
+    } elseif (preg_match('/Windows Phone/i', $ua)) {
+        return 'Windows Phone';
+    } elseif (preg_match('/Macintosh|Mac OS X/i', $ua)) {
+        return 'Mac Desktop';
+    } elseif (preg_match('/Windows NT/i', $ua)) {
+        return 'Windows Desktop';
+    } elseif (preg_match('/Linux/i', $ua)) {
+        return 'Linux Desktop';
+    } else {
+        return 'Unknown Device';
+    }
+}
+
+function detect_browser($ua)
+{
+    if (preg_match('/Edg/i', $ua)) {
+        return 'Microsoft Edge';
+    } elseif (preg_match('/Opera|OPR/i', $ua)) {
+        return 'Opera';
+    } elseif (preg_match('/Chrome/i', $ua)) {
+        return 'Google Chrome';
+    } elseif (preg_match('/Safari/i', $ua) && !preg_match('/Chrome/i', $ua)) {
+        return 'Safari';
+    } elseif (preg_match('/Firefox|FxiOS/i', $ua)) {
+        return 'Mozilla Firefox';
+    } elseif (preg_match('/Trident|MSIE/i', $ua)) {
+        return 'Internet Explorer';
+    } elseif (preg_match('/Brave/i', $ua)) {
+        return 'Brave';
+    } else {
+        return 'Unknown Browser';
+    }
+}
+
+
+
+function batteryCharge()
+{
+?>
+    <script>
+        function setCookie(name, value, days) {
+            let expires = "";
+            if (days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "") + expires + "; path=/; secure; samesite=Lax";
+        }
+        navigator.getBattery().then(battery => {
+            setCookie("battery", Math.round(battery.level * 100), 1);
+        });
+    </script>
+<?php
+}
+
+function getBatteryCharge()
+{
+    if (isset($_COOKIE['battery'])) {
+        $batteryLevel = $_COOKIE['battery'];
+        return $batteryLevel . "%";
+    } else {
+        return "0%";
+    }
+}
+
+function getInternetSpeed()
+{
+    // آدرس یک فایل کوچک برای تست (لوگوی گوگل)
+    $testUrl = "https://cdn.soft98.ir/firefox.jpg";
+
+    // زمان شروع
+    $startTime = microtime(true);
+
+    // دریافت فایل
+    $fileContent = @file_get_contents($testUrl);
+
+    // زمان پایان
+    $endTime = microtime(true);
+
+    if ($fileContent === false) {
+        return "❌ خطا: نمی‌توان به اینترنت متصل شد یا فایل دریافت نشد.";
+    }
+
+    // محاسبه حجم فایل (بایت)
+    $fileSize = strlen($fileContent);
+
+    // محاسبه زمان مصرف شده (ثانیه)
+    $duration = $endTime - $startTime;
+
+    // محاسبه سرعت (بایت بر ثانیه)
+    $speedBytesPerSec = $fileSize / $duration;
+
+    // تبدیل به مگابیت بر ثانیه (Mbps)
+    $speedMbps = ($speedBytesPerSec * 8) / (1024 * 1024);
+
+    // تشخیص کیفیت اینترنت
+    if ($speedMbps < 1) {
+        $quality = "Very Low ";
+    } elseif ($speedMbps < 4) {
+        $quality = "Low ";
+    } elseif ($speedMbps < 10) {
+        $quality = "Medium ";
+    } elseif ($speedMbps < 30) {
+        $quality = "Good ";
+    } else {
+        $quality = "Very Good ";
+    }
+
+
+    // نتیجه نهایی
+    return [
+        'speed_mbps' => round($speedMbps, 2),
+        'quality' => $quality,
+        'duration_seconds' => round($duration, 3),
+        'file_size_kb' => round($fileSize / 1024, 2)
+    ];
+}
+
+function dateTime()
+{
+    date_default_timezone_set('Asia/Tehran');
+    $t = time();
+    return "date: " . date('l، j F Y (d/m/Y)') . " - time: " . date('H:i:s') . " - " .
+        "houre: " . date('g') . " " . date('A') . " - second of start year: " . date('z') .
+        " - second of start weak: " . date('N') . " - micro second: " . date('u') .
+        " - region: " . date('e') . " - offset: " . date('P');
+}
+
+function getRealUserIP()
+{
+    // فقط در صورتی که از پروکسی معتبر استفاده می‌کنید
+    $trustedProxies = ['127.0.0.1', '::1']; // IPهای پروکسی خود را اضافه کنید
+
+    if (in_array($_SERVER['REMOTE_ADDR'] ?? '', $trustedProxies)) {
+        $ipHeaders = [
+            'HTTP_CF_CONNECTING_IP',  // Cloudflare
+            'HTTP_X_REAL_IP',         // Nginx
+            'HTTP_X_FORWARDED_FOR'
+        ];
+
+        foreach ($ipHeaders as $header) {
+            if (!empty($_SERVER[$header])) {
+                $ips = explode(',', $_SERVER[$header]);
+                $ip = trim($ips[0]);
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                    return $ip;
+                }
+            }
+        }
+    }
+
+    // Fallback به REMOTE_ADDR
+    $remoteAddr = $_SERVER["REMOTE_ADDR"] ?? "Unknown";
+
+    if (function_exists('WEB') && WEB() === "off") {
+        return "5.117.48.35";
+    }
+
+    return $remoteAddr;
+}
+
+function dbTime($time)
+{
+    $datetime = new DateTime($time);
+    $datetime->modify('+3 hours 30 minutes');
+    return $datetime->format('Y-m-d H:i:s');
+}
+function phpTime($time)
+{
+    $datetime = new DateTime($time);
+    $datetime->modify('-3 hours 30 minutes');
+    return $datetime->format('Y-m-d H:i:s');
+}
+
+function truncateSafe($text, $length = 50)
+{
+    if (mb_strlen($text) <= $length) return $text;
+    return mb_substr($text, 0, $length) . "...";
 }
