@@ -1,0 +1,9 @@
+Options -Indexes
+
+ErrorDocument 403 https://google.com/404
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+Require all denied

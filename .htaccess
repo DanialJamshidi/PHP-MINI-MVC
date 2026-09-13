@@ -1,5 +1,12 @@
+ErrorDocument 403 https://google.com/404
+
 <IfModule mod_rewrite.c>
-RewriteEngine On
-RewriteRule ^$ public/ [L]
-RewriteRule (.*) public/$1 [L]
+
+    RewriteEngine On
+
+    RewriteRule ^(?:private|vendor|\.git)(?:/|$) - [F,L,NC]
+
+    RewriteRule ^$ public/ [L]
+    RewriteRule ^(.+)$ public/$1 [L]
+
 </IfModule>

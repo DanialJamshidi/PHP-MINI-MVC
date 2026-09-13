@@ -1,5 +1,8 @@
+ErrorDocument 403 https://google.com/404
+
 <IfModule mod_rewrite.c>
-    Options -Multiviews
+
+    Options -MultiViews
     Options -Indexes
 
     RewriteEngine On
