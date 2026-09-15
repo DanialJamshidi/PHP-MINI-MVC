@@ -16,6 +16,53 @@ function CheckSecureHashed($hashed_value, $un_hashed_value)
     return password_verify($un_hashed_value, $hashed_value);
 }
 
+function encryptText(string $text): string
+{
+    $key = base64_decode(Config::APP_KEY);
+
+    if (strlen($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
+        throw new RuntimeException('Invalid encryption key.');
+    }
+
+    $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+
+    $encrypted = sodium_crypto_secretbox($text, $nonce, $key);
+
+    return base64_encode($nonce . $encrypted);
+}
+
+function decryptText(string $encrypted): string
+{
+    $key = base64_decode($_ENV['APP_KEY']);
+
+    if (strlen($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
+        throw new RuntimeException('Invalid encryption key.');
+    }
+
+    $data = base64_decode($encrypted, true);
+
+    if ($data === false) {
+        throw new RuntimeException('Invalid encrypted data.');
+    }
+
+    $nonceSize = SODIUM_CRYPTO_SECRETBOX_NONCEBYTES;
+
+    $nonce = substr($data, 0, $nonceSize);
+    $ciphertext = substr($data, $nonceSize);
+
+    $decrypted = sodium_crypto_secretbox_open(
+        $ciphertext,
+        $nonce,
+        $key
+    );
+
+    if ($decrypted === false) {
+        throw new RuntimeException('Decryption failed.');
+    }
+
+    return $decrypted;
+}
+
 function periodPath($path)
 {
     return str_replace(".", "/", $path);
@@ -45,7 +92,176 @@ function redirectBack(): never
 }
 
 
-function dd(...$contents) { echo ' <style> .debug-box { margin: 25px; padding: 0; background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 14px; overflow: hidden; font-family: Consolas, Monaco, monospace; box-shadow: 0 10px 40px rgba(0, 0, 0, .35), 0 0 35px rgba(168, 85, 247, .12); } .debug-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #161b22; border-bottom: 1px solid #30363d; } .debug-title { display: flex; align-items: center; gap: 9px; color: #fff; font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; } .debug-dot { width: 9px; height: 9px; border-radius: 50%; background: #a855f7; box-shadow: 0 0 12px #a855f7; } .debug-type { padding: 4px 9px; color: #c084fc; background: rgba(168, 85, 247, .1); border: 1px solid rgba(168, 85, 247, .25); border-radius: 6px; font-family: Arial, sans-serif; font-size: 11px; } .debug-content { padding: 20px; overflow-x: auto; } .debug-content::-webkit-scrollbar { width: 7px; height: 7px; } .debug-content::-webkit-scrollbar-track { background: #0d1117; } .debug-content::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; } .debug-value { font-size: 15px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; } .debug-array, .debug-object { display: flex; flex-direction: column; gap: 7px; } .debug-item { padding: 10px 13px; background: #161b22; border: 1px solid #21262d; border-radius: 8px; transition: .2s ease; } .debug-item:hover { border-color: #8b5cf6; background: #1b1f27; } .debug-key { color: #79c0ff; } .debug-string { color: #a5d6ff; } .debug-number { color: #79c0ff; } .debug-boolean { color: #ff7b72; } .debug-null { color: #8b949e; } .debug-object { color: #d2a8ff; } .debug-meta { color: #8b949e; font-size: 12px; } .debug-toggle { cursor: pointer; list-style: none; } .debug-toggle::-webkit-details-marker { display: none; } .debug-toggle::before { content: "▶"; display: inline-block; margin-right: 7px; color: #a855f7; font-size: 10px; transition: transform .15s ease; } details[open] > .debug-toggle::before { transform: rotate(90deg); } .debug-nested { margin-top: 9px; margin-left: 15px; padding-left: 12px; border-left: 1px solid #30363d; } .debug-empty { color: #8b949e; font-style: italic; padding: 8px 0; } </style> '; echo '<div class="debug-box">'; foreach ($contents as $index => $content) { echo '<div class="debug-header">'; echo '<div class="debug-title">'; echo '<span class="debug-dot"></span>'; echo 'DEBUG #' . ($index + 1); echo '</div>'; echo '<span class="debug-type">'; echo htmlspecialchars(gettype($content)); echo '</span>'; echo '</div>'; echo '<div class="debug-content">'; ddRenderValue($content); echo '</div>'; } echo '</div>'; echo '<script> document.querySelectorAll(".debug-toggle").forEach(function (element) { element.addEventListener("click", function (event) { event.stopPropagation(); }); }); </script>'; die; } function ddRenderValue($value, $depth = 0) { if ($depth > 30) { echo '<div class="debug-empty">Maximum depth reached</div>'; return; } if (is_array($value)) { if (empty($value)) { echo '<div class="debug-empty">Array [0]</div>'; return; } echo '<div class="debug-array">'; foreach ($value as $key => $item) { if (is_array($item)) { echo '<div class="debug-item">'; echo '<details>'; echo '<summary class="debug-toggle">'; echo '<span class="debug-key">'; echo htmlspecialchars((string) $key); echo '</span>'; echo ' <span class="debug-meta">'; echo 'Array [' . count($item) . ']'; echo '</span>'; echo '</summary>'; echo '<div class="debug-nested">'; ddRenderValue($item, $depth + 1); echo '</div>'; echo '</details>'; echo '</div>'; } elseif (is_object($item)) { echo '<div class="debug-item">'; echo '<details>'; echo '<summary class="debug-toggle">'; echo '<span class="debug-key">'; echo htmlspecialchars((string) $key); echo '</span>'; echo ' <span class="debug-meta">'; echo 'Object (' . htmlspecialchars(get_class($item)) . ')'; echo '</span>'; echo '</summary>'; echo '<div class="debug-nested">'; ddRenderObject($item, $depth + 1); echo '</div>'; echo '</details>'; echo '</div>'; } else { echo '<div class="debug-item">'; echo '<span class="debug-key">'; echo htmlspecialchars((string) $key); echo '</span>'; echo ' <span style="color:#8b949e;">=&gt;</span> '; ddRenderScalar($item); echo '</div>'; } } echo '</div>'; return; } if (is_object($value)) { ddRenderObject($value, $depth); return; } ddRenderScalar($value); } function ddRenderObject($object, $depth = 0) { if ($depth > 30) { echo '<div class="debug-empty">Maximum depth reached</div>'; return; } $properties = (array) $object; if (empty($properties)) { echo '<div class="debug-empty">'; echo 'Object (' . htmlspecialchars(get_class($object)) . ') [0]'; echo '</div>'; return; } echo '<div class="debug-object">'; foreach ($properties as $key => $value) { $key = preg_replace('/^\0.*\0/', '', $key); echo '<div class="debug-item">'; if (is_array($value)) { echo '<details>'; echo '<summary class="debug-toggle">'; echo '<span class="debug-key">'; echo htmlspecialchars((string) $key); echo '</span>'; echo ' <span class="debug-meta">'; echo 'Array [' . count($value) . ']'; echo '</span>'; echo '</summary>'; echo '<div class="debug-nested">'; ddRenderValue($value, $depth + 1); echo '</div>'; echo '</details>'; } elseif (is_object($value)) { echo '<details>'; echo '<summary class="debug-toggle">'; echo '<span class="debug-key">'; echo htmlspecialchars((string) $key); echo '</span>'; echo ' <span class="debug-meta">'; echo 'Object (' . htmlspecialchars(get_class($value)) . ')'; echo '</span>'; echo '</summary>'; echo '<div class="debug-nested">'; ddRenderObject($value, $depth + 1); echo '</div>'; echo '</details>'; } else { echo '<span class="debug-key">'; echo htmlspecialchars((string) $key); echo '</span>'; echo ' <span style="color:#8b949e;">=&gt;</span> '; ddRenderScalar($value); } echo '</div>'; } echo '</div>'; } function ddRenderScalar($value) { if (is_string($value)) { echo '<span class="debug-string">'; echo '"' . htmlspecialchars($value) . '"'; echo '</span>'; } elseif (is_int($value) || is_float($value)) { echo '<span class="debug-number">'; echo htmlspecialchars((string) $value); echo '</span>'; } elseif (is_bool($value)) { echo '<span class="debug-boolean">'; echo $value ? 'true' : 'false'; echo '</span>'; } elseif (is_null($value)) { echo '<span class="debug-null">'; echo 'null'; echo '</span>'; } elseif (is_resource($value)) { echo '<span class="debug-object">'; echo 'Resource (' . htmlspecialchars(get_resource_type($value)) . ')'; echo '</span>'; } else { echo '<span>'; echo htmlspecialchars((string) $value); echo '</span>'; } }
+function dd(...$contents)
+{
+    echo ' <style> .debug-box { margin: 25px; padding: 0; background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 14px; overflow: hidden; font-family: Consolas, Monaco, monospace; box-shadow: 0 10px 40px rgba(0, 0, 0, .35), 0 0 35px rgba(168, 85, 247, .12); } .debug-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #161b22; border-bottom: 1px solid #30363d; } .debug-title { display: flex; align-items: center; gap: 9px; color: #fff; font-family: Arial, sans-serif; font-size: 13px; font-weight: 700; } .debug-dot { width: 9px; height: 9px; border-radius: 50%; background: #a855f7; box-shadow: 0 0 12px #a855f7; } .debug-type { padding: 4px 9px; color: #c084fc; background: rgba(168, 85, 247, .1); border: 1px solid rgba(168, 85, 247, .25); border-radius: 6px; font-family: Arial, sans-serif; font-size: 11px; } .debug-content { padding: 20px; overflow-x: auto; } .debug-content::-webkit-scrollbar { width: 7px; height: 7px; } .debug-content::-webkit-scrollbar-track { background: #0d1117; } .debug-content::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; } .debug-value { font-size: 15px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; } .debug-array, .debug-object { display: flex; flex-direction: column; gap: 7px; } .debug-item { padding: 10px 13px; background: #161b22; border: 1px solid #21262d; border-radius: 8px; transition: .2s ease; } .debug-item:hover { border-color: #8b5cf6; background: #1b1f27; } .debug-key { color: #79c0ff; } .debug-string { color: #a5d6ff; } .debug-number { color: #79c0ff; } .debug-boolean { color: #ff7b72; } .debug-null { color: #8b949e; } .debug-object { color: #d2a8ff; } .debug-meta { color: #8b949e; font-size: 12px; } .debug-toggle { cursor: pointer; list-style: none; } .debug-toggle::-webkit-details-marker { display: none; } .debug-toggle::before { content: "▶"; display: inline-block; margin-right: 7px; color: #a855f7; font-size: 10px; transition: transform .15s ease; } details[open] > .debug-toggle::before { transform: rotate(90deg); } .debug-nested { margin-top: 9px; margin-left: 15px; padding-left: 12px; border-left: 1px solid #30363d; } .debug-empty { color: #8b949e; font-style: italic; padding: 8px 0; } </style> ';
+    echo '<div class="debug-box">';
+    foreach ($contents as $index => $content) {
+        echo '<div class="debug-header">';
+        echo '<div class="debug-title">';
+        echo '<span class="debug-dot"></span>';
+        echo 'DEBUG #' . ($index + 1);
+        echo '</div>';
+        echo '<span class="debug-type">';
+        echo htmlspecialchars(gettype($content));
+        echo '</span>';
+        echo '</div>';
+        echo '<div class="debug-content">';
+        ddRenderValue($content);
+        echo '</div>';
+    }
+    echo '</div>';
+    echo '<script> document.querySelectorAll(".debug-toggle").forEach(function (element) { element.addEventListener("click", function (event) { event.stopPropagation(); }); }); </script>';
+    die;
+}
+function ddRenderValue($value, $depth = 0)
+{
+    if ($depth > 30) {
+        echo '<div class="debug-empty">Maximum depth reached</div>';
+        return;
+    }
+    if (is_array($value)) {
+        if (empty($value)) {
+            echo '<div class="debug-empty">Array [0]</div>';
+            return;
+        }
+        echo '<div class="debug-array">';
+        foreach ($value as $key => $item) {
+            if (is_array($item)) {
+                echo '<div class="debug-item">';
+                echo '<details>';
+                echo '<summary class="debug-toggle">';
+                echo '<span class="debug-key">';
+                echo htmlspecialchars((string) $key);
+                echo '</span>';
+                echo ' <span class="debug-meta">';
+                echo 'Array [' . count($item) . ']';
+                echo '</span>';
+                echo '</summary>';
+                echo '<div class="debug-nested">';
+                ddRenderValue($item, $depth + 1);
+                echo '</div>';
+                echo '</details>';
+                echo '</div>';
+            } elseif (is_object($item)) {
+                echo '<div class="debug-item">';
+                echo '<details>';
+                echo '<summary class="debug-toggle">';
+                echo '<span class="debug-key">';
+                echo htmlspecialchars((string) $key);
+                echo '</span>';
+                echo ' <span class="debug-meta">';
+                echo 'Object (' . htmlspecialchars(get_class($item)) . ')';
+                echo '</span>';
+                echo '</summary>';
+                echo '<div class="debug-nested">';
+                ddRenderObject($item, $depth + 1);
+                echo '</div>';
+                echo '</details>';
+                echo '</div>';
+            } else {
+                echo '<div class="debug-item">';
+                echo '<span class="debug-key">';
+                echo htmlspecialchars((string) $key);
+                echo '</span>';
+                echo ' <span style="color:#8b949e;">=&gt;</span> ';
+                ddRenderScalar($item);
+                echo '</div>';
+            }
+        }
+        echo '</div>';
+        return;
+    }
+    if (is_object($value)) {
+        ddRenderObject($value, $depth);
+        return;
+    }
+    ddRenderScalar($value);
+}
+function ddRenderObject($object, $depth = 0)
+{
+    if ($depth > 30) {
+        echo '<div class="debug-empty">Maximum depth reached</div>';
+        return;
+    }
+    $properties = (array) $object;
+    if (empty($properties)) {
+        echo '<div class="debug-empty">';
+        echo 'Object (' . htmlspecialchars(get_class($object)) . ') [0]';
+        echo '</div>';
+        return;
+    }
+    echo '<div class="debug-object">';
+    foreach ($properties as $key => $value) {
+        $key = preg_replace('/^\0.*\0/', '', $key);
+        echo '<div class="debug-item">';
+        if (is_array($value)) {
+            echo '<details>';
+            echo '<summary class="debug-toggle">';
+            echo '<span class="debug-key">';
+            echo htmlspecialchars((string) $key);
+            echo '</span>';
+            echo ' <span class="debug-meta">';
+            echo 'Array [' . count($value) . ']';
+            echo '</span>';
+            echo '</summary>';
+            echo '<div class="debug-nested">';
+            ddRenderValue($value, $depth + 1);
+            echo '</div>';
+            echo '</details>';
+        } elseif (is_object($value)) {
+            echo '<details>';
+            echo '<summary class="debug-toggle">';
+            echo '<span class="debug-key">';
+            echo htmlspecialchars((string) $key);
+            echo '</span>';
+            echo ' <span class="debug-meta">';
+            echo 'Object (' . htmlspecialchars(get_class($value)) . ')';
+            echo '</span>';
+            echo '</summary>';
+            echo '<div class="debug-nested">';
+            ddRenderObject($value, $depth + 1);
+            echo '</div>';
+            echo '</details>';
+        } else {
+            echo '<span class="debug-key">';
+            echo htmlspecialchars((string) $key);
+            echo '</span>';
+            echo ' <span style="color:#8b949e;">=&gt;</span> ';
+            ddRenderScalar($value);
+        }
+        echo '</div>';
+    }
+    echo '</div>';
+}
+function ddRenderScalar($value)
+{
+    if (is_string($value)) {
+        echo '<span class="debug-string">';
+        echo '"' . htmlspecialchars($value) . '"';
+        echo '</span>';
+    } elseif (is_int($value) || is_float($value)) {
+        echo '<span class="debug-number">';
+        echo htmlspecialchars((string) $value);
+        echo '</span>';
+    } elseif (is_bool($value)) {
+        echo '<span class="debug-boolean">';
+        echo $value ? 'true' : 'false';
+        echo '</span>';
+    } elseif (is_null($value)) {
+        echo '<span class="debug-null">';
+        echo 'null';
+        echo '</span>';
+    } elseif (is_resource($value)) {
+        echo '<span class="debug-object">';
+        echo 'Resource (' . htmlspecialchars(get_resource_type($value)) . ')';
+        echo '</span>';
+    } else {
+        echo '<span>';
+        echo htmlspecialchars((string) $value);
+        echo '</span>';
+    }
+}
 
 
 function pdf()
@@ -1389,9 +1605,9 @@ function getRealUserIP()
 
     if (function_exists('WEB') && WEB() === "off") {
         return random_int(1, 223) . '.' .
-               random_int(0, 255) . '.' .
-               random_int(0, 255) . '.' .
-               random_int(1, 254);
+            random_int(0, 255) . '.' .
+            random_int(0, 255) . '.' .
+            random_int(1, 254);
     }
 
     return $remoteAddr;
@@ -1504,4 +1720,40 @@ function getFlash(string $name, mixed $default = null): mixed
     unsetSession($name);
 
     return $value;
+}
+
+function old(string $key, mixed $default = ''): string
+{
+    $old = getSession('_old', []);
+
+    if (
+        empty($old) ||
+        !isset($old['expires_at']) ||
+        time() >= $old['expires_at']
+    ) {
+        unsetSession('_old');
+        return $default;
+    }
+
+    return htmlspecialchars(
+        $old['data'][$key] ?? $default,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+}
+
+function oldInput(): void
+{
+    $old = getSession('_old');
+
+    if ($old !== null && isset($old['expires_at'])) {
+        if (time() >= $old['expires_at']) {
+            unsetSession('_old');
+        }
+    }
+
+    session('_old', [
+        'data' => $_POST,
+        'expires_at' => time() + 600
+    ]);
 }

@@ -17,6 +17,7 @@ class Config
     public const DB_USER = 'root';
     public const DB_PASSWORD = '';
     public const DB_NAME = 'mvc';
+    public const APP_KEY = 'pPQ90Co9y2L2869CIjBc1pmzglF2canmIppLlLI4SCI';
 
     
 
