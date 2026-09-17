@@ -26,7 +26,7 @@
                 </div>
                 <h1 class="logo-title">
                     <span class="logo-title-text">
-                        Danial
+                        PHP
                     </span>
                     <img
                         src="<?= urlPath('/assets/img/4.svg'); ?>"

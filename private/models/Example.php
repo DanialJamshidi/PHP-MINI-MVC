@@ -1,8 +1,9 @@
 <?php
 
-class Example
+class Example extends Model
 {
     private static string $table = 'example';
+    // Auto Name: static::name();
     public static function getAll()
     {
         return DB::all(self::$table);

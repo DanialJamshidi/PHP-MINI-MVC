@@ -1757,3 +1757,43 @@ function oldInput(): void
         'expires_at' => time() + 600
     ]);
 }
+
+function getValue(string $value)
+{
+    return trim($_POST[$value] ?? "");
+}
+
+function validateEmpty(array $data, mixed $callback)
+{
+    foreach ($data as $item) {
+        if ($item === "") {
+            $callback($item);
+        }
+    }
+}
+function validateEmail(string $email, mixed $callback): void
+{
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $callback($email);
+    }
+}
+
+function validateMinLength(
+    string $value,
+    int $length,
+    mixed $callback
+): void {
+    if (mb_strlen($value) < $length) {
+        $callback($value);
+    }
+}
+
+function validateMaxLength(
+    string $value,
+    int $length,
+    mixed $callback
+): void {
+    if (mb_strlen($value) > $length) {
+        $callback($value);
+    }
+}

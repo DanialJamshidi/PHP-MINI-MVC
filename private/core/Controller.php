@@ -2,7 +2,7 @@
 
 class Controller
 {
-    static public function view($view, $data = [])
+    static protected function view($view, $data = [])
     {
         $path = Config::PRIVATEROOT . "/views/" . periodPath($view) . ".php";
 
@@ -15,7 +15,7 @@ class Controller
         }
     }
 
-    static public function authorization($sessionName)
+    static protected function authorization($sessionName)
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
             session_start();
